@@ -1,0 +1,61 @@
+version: '3.8'
+
+# Docker Compose configuration for Portal Lab. This file defines two services:
+#  - api: the Fastify backend responsible for authentication, file uploads and demo
+#    endpoints. It exposes port 4000 and persists uploaded files in a named
+#    volume so that uploads survive container restarts.
+#  - web: the Next.js frontend which talks to the API on the same origin via
+#    rewrites. It exposes port 3000 and depends on the api service.
+# A named volume `uploads` stores uploaded files. A separate volume
+# `node_modules` is used for the web container to speed up installs when used
+# outside of CI.
+
+services:
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    environment:
+      # Secret used to sign mock JWT tokens. In a real application this would
+      # never be hard‑coded. See `.env.example` for all possible variables.
+      - JWT_SECRET=${JWT_SECRET:-secret}
+      # Maximum size of an uploaded file in bytes. The default of 5 MB matches
+      # the frontend restrictions.
+      - MAX_FILE_SIZE=${MAX_FILE_SIZE:-5242880}
+      # Comma separated list of allowed content types. Only PNG and JPEG are
+      # allowed for uploads.
+      - ALLOWED_TYPES=${ALLOWED_TYPES:-image/png,image/jpeg}
+      - PORT=4000
+    volumes:
+      # Persist uploaded files across container restarts.
+      - uploads:/app/uploads
+    ports:
+      - "4000:4000"
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    environment:
+      # Internal URL for the API. When running inside Compose this resolves to
+      # the api service; Next.js rewrites `/api/*` to this URL.
+      - API_INTERNAL_URL=${API_INTERNAL_URL:-http://api:4000}
+      # Prefix exposed to the frontend for API requests. In combination with
+      # rewrites in `next.config.js` this allows the frontend to call `/api/...`.
+      - NEXT_PUBLIC_API_BASE=/api
+      - PORT=3000
+    depends_on:
+      - api
+    volumes:
+      # Mount the uploads volume so that the frontend can serve files if
+      # necessary. The files are not used directly by Next.js but remain
+      # accessible via the API.
+      - uploads:/app/uploads
+      # A persistent node_modules volume speeds up installs in development.
+      - node_modules:/app/node_modules
+    ports:
+      - "3000:3000"
+
+volumes:
+  uploads:
+  node_modules:

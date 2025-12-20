@@ -1,0 +1,21 @@
+{
+  "name": "portal-lab-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "npm run build && node dist/index.js",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^8.2.1",
+    "@fastify/multipart": "^7.6.1",
+    "fastify": "^4.20.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.9.3",
+    "typescript": "^5.2.2"
+  }
+}
