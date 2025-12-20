@@ -1,6 +1,7 @@
 # Node dependencies
 app/api/node_modules/
 app/web/node_modules/
+app/web/.next/
 
 # Optional common Node ignores
 npm-debug.log*
