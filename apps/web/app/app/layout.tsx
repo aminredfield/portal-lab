@@ -1,48 +1,24 @@
-"use client";
+import '../globals.css';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import Providers from '@/components/Providers';
 
-import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import AppShell from "@/components/AppShell";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-import useAuth from "@/store/auth";
-import { useToast } from "@/components/ToastProvider";
+// Import Inter font from Google. This ensures consistent typography.
+const inter = Inter({ subsets: ['latin'] });
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { token, exp, logout } = useAuth();
-  const router = useRouter();
-  const { addToast } = useToast();
+export const metadata: Metadata = {
+  title: 'Portal Lab',
+  description: 'Internal portal demonstrating auth, uploads, errors and performance.'
+};
 
-  useEffect(() => {
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-
-    if (exp && exp * 1000 < Date.now()) {
-      logout();
-      addToast("Session expired. Please log in again.", "error");
-      router.push("/login");
-      return;
-    }
-
-    // noAccess from middleware (без useSearchParams)
-    if (typeof window !== "undefined") {
-      const sp = new URLSearchParams(window.location.search);
-      const noAccess = sp.get("noAccess");
-      if (noAccess) {
-        addToast("No access.", "error");
-        sp.delete("noAccess");
-        const nextSearch = sp.toString();
-        router.replace(
-          nextSearch ? `${window.location.pathname}?${nextSearch}` : window.location.pathname
-        );
-      }
-    }
-  }, [token, exp, logout, router, addToast]);
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ErrorBoundary>
-      <AppShell>{children}</AppShell>
-    </ErrorBoundary>
+    <html lang="en">
+      <body className={inter.className}>
+        <Providers>
+          {children}
+        </Providers>
+      </body>
+    </html>
   );
 }
