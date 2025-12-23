@@ -1,24 +1,91 @@
-import '../globals.css';
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import Providers from '@/components/Providers';
+"use client";
 
-// Import Inter font from Google. This ensures consistent typography.
-const inter = Inter({ subsets: ['latin'] });
+import React, { useEffect } from 'react';
+import { ThemeProvider, CssBaseline, Box } from '@mui/material';
+import { useRouter, useSearchParams } from 'next/navigation';
+import theme from '@/theme';
+import { ToastProvider, useToast } from '@/components/ToastProvider';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import AppShell from '@/components/AppShell';
+import useAuth from '@/store/auth';
 
-export const metadata: Metadata = {
-  title: 'Portal Lab',
-  description: 'Internal portal demonstrating auth, uploads, errors and performance.'
-};
+function AppLayoutContent({ children }: { children: React.ReactNode }) {
+  const { token, exp, initialized, logout, hydrate } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { addToast } = useToast();
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Гидрация auth при монтировании
+  useEffect(() => {
+    if (!initialized) {
+      hydrate();
+    }
+  }, [initialized, hydrate]);
+
+  // Проверка истечения токена
+  useEffect(() => {
+    if (!initialized) return;
+
+    if (!token || !exp) {
+      router.push('/login');
+      return;
+    }
+
+    // Проверяем, не истек ли токен
+    const checkTokenExpiry = () => {
+      if (exp * 1000 < Date.now()) {
+        addToast('Сессия истекла. Войдите снова.', 'warning');
+        logout();
+        router.push('/login');
+      }
+    };
+
+    checkTokenExpiry();
+    const interval = setInterval(checkTokenExpiry, 60000); // Каждую минуту
+
+    return () => clearInterval(interval);
+  }, [token, exp, initialized, logout, router, addToast]);
+
+  // Обработка редиректов от middleware
+  useEffect(() => {
+    const noAccess = searchParams?.get('noAccess');
+    if (noAccess === '1') {
+      addToast('У вас нет доступа к этой странице.', 'error');
+      const url = new URL(window.location.href);
+      url.searchParams.delete('noAccess');
+      router.replace(url.pathname);
+    }
+  }, [searchParams, addToast, router]);
+
+  if (!initialized) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+        }}
+      >
+        Loading...
+      </Box>
+    );
+  }
+
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <Providers>
-          {children}
-        </Providers>
-      </body>
-    </html>
+    <ErrorBoundary>
+      <AppShell>{children}</AppShell>
+    </ErrorBoundary>
+  );
+}
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <ToastProvider>
+        <AppLayoutContent>{children}</AppLayoutContent>
+      </ToastProvider>
+    </ThemeProvider>
   );
 }

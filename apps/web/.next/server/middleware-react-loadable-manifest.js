@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{}"
+self.__REACT_LOADABLE_MANIFEST='{"app\\\\app\\\\perf\\\\good\\\\page.tsx -> @/components/HeavyComponent":{"id":1527,"files":["static/chunks/527.af3cf52127b77f79.js"]}}';

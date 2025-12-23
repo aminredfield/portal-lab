@@ -13,14 +13,15 @@ import {
   ListItemIcon,
   ListItemText,
   Divider,
-  CssBaseline,
   useTheme,
   useMediaQuery,
   Avatar,
   Menu,
   MenuItem,
   Chip,
-  Box
+  Box,
+  Tooltip,
+  ListSubheader,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
@@ -29,38 +30,69 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import SpeedIcon from '@mui/icons-material/Speed';
 import PersonIcon from '@mui/icons-material/Person';
+import LogoutIcon from '@mui/icons-material/Logout';
 import useAuth from '@/store/auth';
-
-interface AppShellProps {
-  children: React.ReactNode;
-}
 
 interface MenuItemDef {
   label: string;
   href: string;
   icon: React.ReactNode;
   roles: ('admin' | 'manager' | 'viewer')[];
+  category: string;
 }
 
 const menuItems: MenuItemDef[] = [
-  { label: 'Uploads', href: '/app/uploads', icon: <CloudUploadIcon />, roles: ['admin', 'manager', 'viewer'] },
-  { label: 'Reports', href: '/app/reports', icon: <BarChartIcon />, roles: ['admin', 'manager'] },
-  { label: 'Admin', href: '/app/admin', icon: <AdminPanelSettingsIcon />, roles: ['admin'] },
-  { label: 'Errors Lab', href: '/app/errors/api', icon: <BugReportIcon />, roles: ['admin', 'manager', 'viewer'] },
-  { label: 'Performance Lab', href: '/app/perf/bad', icon: <SpeedIcon />, roles: ['admin', 'manager', 'viewer'] },
-  { label: 'Profile', href: '/app/profile', icon: <PersonIcon />, roles: ['admin', 'manager', 'viewer'] }
+  {
+    label: 'Профиль',
+    href: '/app/profile',
+    icon: <PersonIcon />,
+    roles: ['admin', 'manager', 'viewer'],
+    category: 'Основное'
+  },
+  {
+    label: 'Загрузки',
+    href: '/app/uploads',
+    icon: <CloudUploadIcon />,
+    roles: ['admin', 'manager', 'viewer'],
+    category: 'Основное'
+  },
+  {
+    label: 'Отчеты',
+    href: '/app/reports',
+    icon: <BarChartIcon />,
+    roles: ['admin', 'manager'],
+    category: 'Основное'
+  },
+  {
+    label: 'Админ панель',
+    href: '/app/admin',
+    icon: <AdminPanelSettingsIcon />,
+    roles: ['admin'],
+    category: 'Основное'
+  },
+  {
+    label: 'Тест ошибок',
+    href: '/app/errors/api',
+    icon: <BugReportIcon />,
+    roles: ['admin', 'manager', 'viewer'],
+    category: 'Разработка'
+  },
+  {
+    label: 'Производительность',
+    href: '/app/perf/bad',
+    icon: <SpeedIcon />,
+    roles: ['admin', 'manager', 'viewer'],
+    category: 'Разработка'
+  },
 ];
 
-/**
- * AppShell provides the common layout for the protected /app pages. It
- * implements an AppBar with the portal title, the current user's role as a
- * chip, an avatar menu for logout and a responsive Drawer for navigation.
- */
-export default function AppShell({ children }: AppShellProps) {
+const DRAWER_WIDTH = 260;
+
+export default function AppShell({ children }: { children: React.ReactNode }) {
   const theme = useTheme();
   const isMdUp = useMediaQuery(theme.breakpoints.up('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { token, role, email, logout } = useAuth();
+  const { role, email, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -72,117 +104,244 @@ export default function AppShell({ children }: AppShellProps) {
   const handleAvatarClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
+
   const handleMenuClose = () => {
     setAnchorEl(null);
   };
+
   const handleLogout = () => {
     logout();
     router.push('/login');
     handleMenuClose();
   };
 
-  // Filter menu items based on role
+  const handleNavigate = (href: string) => {
+    router.push(href);
+    if (!isMdUp) setMobileOpen(false);
+  };
+
   const filtered = menuItems.filter((item) => (role ? item.roles.includes(role) : false));
+  const categories = Array.from(new Set(filtered.map((item) => item.category)));
+
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'admin': return 'error';
+      case 'manager': return 'warning';
+      default: return 'default';
+    }
+  };
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'admin': return 'Администратор';
+      case 'manager': return 'Менеджер';
+      case 'viewer': return 'Наблюдатель';
+      default: return role;
+    }
+  };
+
   const drawer = (
-    <div>
-      <Toolbar sx={{ minHeight: '64px' }} />
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
+        <Typography variant="h6" noWrap sx={{ fontWeight: 700 }}>
+          Portal Lab
+        </Typography>
+      </Toolbar>
       <Divider />
-      <List>
-        {filtered.map((item) => {
-          const selected = pathname === item.href;
-          return (
-            <ListItemButton
-              key={item.href}
-              selected={selected}
-              onClick={() => {
-                router.push(item.href);
-                if (!isMdUp) setMobileOpen(false);
+
+      <Box sx={{ flexGrow: 1, overflowY: 'auto', py: 1 }}>
+        {categories.map((category) => (
+          <Box key={category}>
+            <ListSubheader
+              sx={{
+                bgcolor: 'transparent',
+                fontWeight: 600,
+                fontSize: '0.75rem',
+                color: 'text.secondary',
               }}
             >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.label} />
-            </ListItemButton>
-          );
-        })}
-      </List>
-    </div>
+              {category}
+            </ListSubheader>
+            <List dense>
+              {filtered
+                .filter((item) => item.category === category)
+                .map((item) => {
+                  const selected = pathname === item.href || pathname?.startsWith(item.href + '/');
+                  return (
+                    <ListItemButton
+                      key={item.href}
+                      selected={selected}
+                      onClick={() => handleNavigate(item.href)}
+                      sx={{
+                        mx: 1,
+                        borderRadius: 1,
+                        mb: 0.5,
+                        '&.Mui-selected': {
+                          backgroundColor: 'primary.main',
+                          color: 'primary.contrastText',
+                          '&:hover': {
+                            backgroundColor: 'primary.dark',
+                          },
+                          '& .MuiListItemIcon-root': {
+                            color: 'primary.contrastText',
+                          },
+                        },
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+                      <ListItemText
+                        primary={item.label}
+                        primaryTypographyProps={{
+                          fontSize: '0.875rem',
+                          fontWeight: selected ? 600 : 400,
+                        }}
+                      />
+                    </ListItemButton>
+                  );
+                })}
+            </List>
+          </Box>
+        ))}
+      </Box>
+
+      <Divider />
+      <Box sx={{ p: 2 }}>
+        <Box
+          sx={{
+            p: 1.5,
+            borderRadius: 1,
+            bgcolor: 'background.default',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+          }}
+        >
+          <Avatar sx={{ width: 32, height: 32, fontSize: '0.875rem' }}>
+            {email?.[0]?.toUpperCase() || 'U'}
+          </Avatar>
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 600,
+                fontSize: '0.813rem',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {email}
+            </Typography>
+            <Chip
+              label={getRoleLabel(role || '')}
+              size="small"
+              color={getRoleColor(role || '')}
+              sx={{ height: 20, fontSize: '0.688rem', mt: 0.5 }}
+            />
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <CssBaseline />
-      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-        <Toolbar>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+      <AppBar
+        position="fixed"
+        elevation={0}
+        sx={{
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+          color: 'text.primary',
+        }}
+      >
+        <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
           {!isMdUp && (
-            <IconButton color="inherit" edge="start" onClick={handleDrawerToggle} sx={{ mr: 2 }}>
+            <IconButton
+              color="inherit"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2 }}
+            >
               <MenuIcon />
             </IconButton>
           )}
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+
+          <Typography variant="h6" noWrap sx={{ flexGrow: 1, fontWeight: 700 }}>
             Portal Lab
           </Typography>
-          {role && (
-            <Chip
-              label={`Role: ${role}`}
-              color="primary"
-              variant="filled"
-              sx={{ mr: 2 }}
-            />
-          )}
-          {email && (
-            <>
-              <IconButton color="inherit" onClick={handleAvatarClick}>
-                <Avatar>{email[0]?.toUpperCase()}</Avatar>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {isMdUp && role && (
+              <Chip
+                label={getRoleLabel(role)}
+                size="small"
+                color={getRoleColor(role)}
+                variant="outlined"
+              />
+            )}
+
+            <Tooltip title="Профиль и выход">
+              <IconButton onClick={handleAvatarClick} size="small">
+                <Avatar sx={{ width: 32, height: 32 }}>
+                  {email?.[0]?.toUpperCase() || 'U'}
+                </Avatar>
               </IconButton>
-              <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleMenuClose}
-              >
-                <MenuItem onClick={() => { router.push('/app/profile'); handleMenuClose(); }}>Profile</MenuItem>
-                <MenuItem onClick={handleLogout}>Logout</MenuItem>
-              </Menu>
-            </>
-          )}
+            </Tooltip>
+
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleMenuClose}
+            >
+              <MenuItem onClick={() => { handleNavigate('/app/profile'); handleMenuClose(); }}>
+                <ListItemIcon><PersonIcon fontSize="small" /></ListItemIcon>
+                <ListItemText primary="Профиль" />
+              </MenuItem>
+              <Divider />
+              <MenuItem onClick={handleLogout}>
+                <ListItemIcon><LogoutIcon fontSize="small" /></ListItemIcon>
+                <ListItemText primary="Выйти" />
+              </MenuItem>
+            </Menu>
+          </Box>
         </Toolbar>
       </AppBar>
-      <Box
-        component="nav"
-        sx={{ width: { md: 240 }, flexShrink: { md: 0 } }}
-        aria-label="mailbox folders"
+
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={handleDrawerToggle}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': { width: DRAWER_WIDTH },
+        }}
       >
-        {/* Mobile drawer */}
-        {!isMdUp && (
-          <Drawer
-            variant="temporary"
-            open={mobileOpen}
-            onClose={handleDrawerToggle}
-            ModalProps={{ keepMounted: true }}
-            sx={{
-              display: { xs: 'block', md: 'none' },
-              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: 240 }
-            }}
-          >
-            {drawer}
-          </Drawer>
-        )}
-        {/* Desktop drawer */}
-        {isMdUp && (
-          <Drawer
-            variant="permanent"
-            open
-            sx={{
-              display: { xs: 'none', md: 'block' },
-              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: 240 }
-            }}
-          >
-            {drawer}
-          </Drawer>
-        )}
-      </Box>
+        {drawer}
+      </Drawer>
+
+      <Drawer
+        variant="permanent"
+        sx={{
+          display: { xs: 'none', md: 'block' },
+          '& .MuiDrawer-paper': { width: DRAWER_WIDTH, borderRight: '1px solid', borderColor: 'divider' },
+        }}
+        open
+      >
+        {drawer}
+      </Drawer>
+
       <Box
         component="main"
-        sx={{ flexGrow: 1, p: 3, width: { md: `calc(100% - 240px)` }, mt: '64px' }}
+        sx={{
+          flexGrow: 1,
+          p: { xs: 2, sm: 3 },
+          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          mt: { xs: '56px', sm: '64px' },
+        }}
       >
         {children}
       </Box>
